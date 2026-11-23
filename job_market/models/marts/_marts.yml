@@ -1,0 +1,55 @@
+models:
+  - name: dim_postings
+    description: One row per posting with its latest attributes and first/last seen times.
+    columns:
+      - name: job_id
+        data_tests:
+          - unique
+          - not_null
+      - name: posted_salary_mid
+        description: Midpoint of the posted salary range; null when Adzuna estimated the salary.
+      - name: first_seen_at
+        description: First ingest run that returned this posting.
+      - name: last_seen_at
+        description: Latest ingest run that returned this posting. Old values hint the posting was taken down.
+      - name: times_seen
+        description: Number of ingest runs that returned this posting.
+
+  - name: bridge_posting_roles
+    description: Posting-to-role mapping; one row per (job_id, role).
+    columns:
+      - name: job_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_postings')
+                field: job_id
+      - name: role
+        data_tests:
+          - not_null
+
+  - name: fct_daily_postings
+    description: New postings per posted date and role.
+    columns:
+      - name: posted_date
+        data_tests:
+          - not_null
+      - name: role
+        data_tests:
+          - not_null
+      - name: avg_posted_salary_mid
+        description: Average posted salary midpoint; ignores Adzuna's estimated salaries.
+
+  - name: mart_skill_mentions
+    description: Share of postings per role that mention each skill. Lower bound, because descriptions are truncated.
+    columns:
+      - name: skill
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('skills')
+                field: skill
+      - name: share_of_postings
+        description: postings_mentioning / role_postings, between 0 and 1.

@@ -1,0 +1,24 @@
+models:
+  - name: stg_adzuna__postings
+    description: Cleaned Adzuna postings; one row per posting per search (role) per ingest run.
+    columns:
+      - name: job_id
+        description: Adzuna's posting id.
+        data_tests:
+          - not_null
+      - name: title
+        description: Job title with Adzuna's highlight tags removed.
+        data_tests:
+          - not_null
+      - name: salary_is_predicted
+        description: True when Adzuna estimated the salary instead of reading it from the posting.
+      - name: posted_at
+        description: When the posting was created on Adzuna (UTC).
+      - name: description
+        description: Description snippet. The Adzuna search API truncates it (~500 characters).
+      - name: role
+        description: Which search found the posting (the `name` in pipeline/searches.yml).
+        data_tests:
+          - not_null
+      - name: ingested_at
+        description: When the ingest run that fetched this row started (UTC).

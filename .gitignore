@@ -3,3 +3,11 @@ __pycache__/
 .DS_Store
 .streamlit/secrets.toml
 .env
+
+# pipeline output and dbt build artifacts
+data/
+job_market/target/
+job_market/logs/
+job_market/dbt_packages/
+logs/
+job_market/.user.yml

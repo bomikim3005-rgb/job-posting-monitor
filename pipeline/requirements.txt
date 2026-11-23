@@ -1,0 +1,6 @@
+# Pipeline only (ingest + dbt). The Streamlit app uses ../requirements.txt,
+# so Streamlit Cloud doesn't install dbt.
+dbt>=2.0.11
+pyarrow
+pyyaml
+requests

@@ -1,0 +1,17 @@
+sources:
+  - name: adzuna
+    description: Raw Adzuna search results written by pipeline/ingest.py, one Parquet file per run.
+    tables:
+      - name: postings
+        description: >
+          One row per posting per search per ingest run. The same job shows up again
+          on later runs (and under more than one search), so this is not unique on job_id.
+        config:
+          external_location: '../data/raw/adzuna_postings_*.parquet'
+        columns:
+          - name: job_id
+            data_tests:
+              - not_null
+          - name: ingested_at
+            data_tests:
+              - not_null

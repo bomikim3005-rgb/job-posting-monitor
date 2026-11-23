@@ -1,0 +1,14 @@
+# Searches the daily ingest runs. Each keyword string is matched as an exact
+# phrase (Adzuna `what_phrase`). `name` becomes the `role` column in dbt.
+country: us
+max_pages: 3          # 50 results per page -> up to 150 postings per search
+searches:
+  - name: data_analyst
+    keywords: data analyst
+    location: San Francisco Bay Area
+  - name: data_scientist
+    keywords: data scientist
+    location: San Francisco Bay Area
+  - name: analytics_engineer
+    keywords: analytics engineer
+    location: San Francisco Bay Area

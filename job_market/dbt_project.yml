@@ -1,0 +1,17 @@
+name: job_market
+profile: job_market
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+models:
+  job_market:
+    staging:
+      +materialized: view
+    marts:
+      +materialized: table

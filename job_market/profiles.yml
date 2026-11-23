@@ -1,0 +1,9 @@
+# Run dbt from inside job_market/ so these relative paths resolve.
+# A BigQuery target gets added here when we move off DuckDB.
+job_market:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: ../data/job_market.duckdb
+      threads: 1

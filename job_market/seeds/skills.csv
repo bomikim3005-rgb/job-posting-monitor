@@ -1,0 +1,24 @@
+skill,skill_group,pattern
+SQL,language,\bsql\b
+Python,language,\bpython\b
+R,language,\br\b[^&'-]
+Excel,tool,\bexcel\b
+Tableau,BI,\btableau\b
+Power BI,BI,\bpower ?bi\b
+Looker,BI,\blooker\b
+dbt,data stack,\bdbt\b
+Airflow,data stack,\bairflow\b
+Spark,data stack,\b(py)?spark\b
+Snowflake,data stack,\bsnowflake\b
+BigQuery,data stack,\bbig ?query\b
+Databricks,data stack,\bdatabricks\b
+AWS,cloud,\baws\b|amazon web services
+GCP,cloud,\bgcp\b|google cloud
+Statistics,method,\bstatistic
+A/B testing,method,\ba/?b test|\bexperimentation\b
+Machine learning,method,machine learning|\bml\b
+LLMs / GenAI,method,\bllms?\b|generative ai|\bgenai\b
+pandas,library,\bpandas\b
+scikit-learn,library,scikit|sklearn
+PyTorch,library,\bpytorch\b
+Git,tool,\bgit\b|github
