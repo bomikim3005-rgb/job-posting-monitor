@@ -54,20 +54,19 @@ SCHEMA = pa.schema([
 
 def fetch(search: dict, country: str, max_pages: int, app_id: str, app_key: str):
     """Yield raw job dicts for one search, newest first."""
+    params = {
+        "app_id": app_id,
+        "app_key": app_key,
+        "results_per_page": PER_PAGE,
+        "what_phrase": search["keywords"],
+        "where": search["location"],
+        "sort_by": "date",
+        "content-type": "application/json",
+    }
+    if search.get("distance_km"):
+        params["distance"] = search["distance_km"]
     for page in range(1, max_pages + 1):
-        resp = requests.get(
-            API_URL.format(country=country, page=page),
-            params={
-                "app_id": app_id,
-                "app_key": app_key,
-                "results_per_page": PER_PAGE,
-                "what_phrase": search["keywords"],
-                "where": search["location"],
-                "sort_by": "date",
-                "content-type": "application/json",
-            },
-            timeout=30,
-        )
+        resp = requests.get(API_URL.format(country=country, page=page), params=params, timeout=30)
         if resp.status_code != 200:
             # Don't print the URL or exception text: they contain app_key.
             raise RuntimeError(f"page {page}: HTTP {resp.status_code}")
@@ -122,6 +121,8 @@ def main() -> int:
     rows, failed = [], []
 
     for search in config["searches"]:
+        # Top-level location / distance_km apply to every search unless it sets its own.
+        search = {"location": config.get("location"), "distance_km": config.get("distance_km"), **search}
         try:
             jobs = list(fetch(search, config.get("country", "us"), config.get("max_pages", 3), app_id, app_key))
         except (RuntimeError, requests.RequestException) as e:
@@ -140,7 +141,10 @@ def main() -> int:
         tmp.rename(dest)
         print(f"Wrote {len(rows)} rows to {dest.relative_to(ROOT)}")
     else:
-        print("No rows fetched; nothing written.")
+        # Fail so run.sh stops here instead of running dbt on no data.
+        print("No rows fetched; nothing written. Check location / keywords in "
+              "pipeline/searches.yml.", file=sys.stderr)
+        return 2
 
     return 1 if failed else 0
 

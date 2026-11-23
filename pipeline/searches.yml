@@ -1,14 +1,17 @@
 # Searches the daily ingest runs. Each keyword string is matched as an exact
 # phrase (Adzuna `what_phrase`). `name` becomes the `role` column in dbt.
+#
+# Adzuna matches `location` to a city or county name ("San Francisco Bay Area"
+# returns nothing) and searches only 5 km around it unless distance_km is set.
+# 80 km from San Francisco reaches Oakland, the Peninsula and San Jose.
 country: us
 max_pages: 3          # 50 results per page -> up to 150 postings per search
+location: San Francisco
+distance_km: 80
 searches:
   - name: data_analyst
     keywords: data analyst
-    location: San Francisco Bay Area
   - name: data_scientist
     keywords: data scientist
-    location: San Francisco Bay Area
   - name: analytics_engineer
     keywords: analytics engineer
-    location: San Francisco Bay Area
