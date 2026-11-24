@@ -1,7 +1,7 @@
 """Job Posting Monitor - Streamlit app.
 
 Two tabs:
-  Market trends  Reads the dbt models the hourly pipeline builds: BigQuery when
+  Market trends  Reads the dbt models the scheduled pipeline builds: BigQuery when
                  BQ_PROJECT and GCP_SA_KEY are set, otherwise the local DuckDB file
                  data/job_market.duckdb that ./pipeline/run.sh creates.
   Live search    Calls the Adzuna API directly, only when someone clicks Search.
@@ -140,7 +140,7 @@ def render_trends():
     p = postings[postings["job_id"].isin(picked_roles["job_id"])]
 
     started, updated = postings["first_seen_at"].min(), postings["last_seen_at"].max()
-    st.caption(f"Source: {source} · collected hourly from Adzuna since "
+    st.caption(f"Source: {source} · collected every 6 hours from Adzuna since "
                f"{started:%b} {started.day} · last update {updated:%b} {updated.day}, "
                f"{updated:%H:%M} UTC · San Francisco + 80 km")
 
@@ -360,7 +360,7 @@ def render_live():
 
 st.set_page_config(page_title="Job Posting Monitor", layout="wide")
 st.title("Job Posting Monitor")
-st.caption("Data roles in the San Francisco Bay Area, tracked hourly: "
+st.caption("Data roles in the San Francisco Bay Area, tracked every 6 hours: "
            "Adzuna → BigQuery → dbt → Streamlit.")
 
 trends_tab, live_tab = st.tabs(["Market trends", "Live search"])

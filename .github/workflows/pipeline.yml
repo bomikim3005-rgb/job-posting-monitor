@@ -1,4 +1,4 @@
-# Hourly pipeline: Adzuna -> BigQuery raw table -> dbt build in BigQuery.
+# Every-6-hours pipeline: Adzuna -> BigQuery raw table -> dbt build in BigQuery.
 #
 # Repo secrets needed (Settings -> Secrets and variables -> Actions):
 #   ADZUNA_APP_ID, ADZUNA_APP_KEY  Adzuna API credentials
@@ -8,7 +8,9 @@ name: pipeline
 
 on:
   schedule:
-    - cron: "17 * * * *"   # every hour at :17 (GitHub may start it a few minutes late)
+    # 00:17, 06:17, 12:17, 18:17 UTC = 4:17 / 10:17 / 16:17 / 22:17 Pacific (PST).
+    # GitHub may start it a few minutes late.
+    - cron: "17 */6 * * *"
   workflow_dispatch:        # "Run workflow" button for manual runs
 
 concurrency:
