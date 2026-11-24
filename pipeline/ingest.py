@@ -3,12 +3,16 @@ them as one Parquet file in data/raw/.
 
 Run from the repo root:
     export ADZUNA_APP_ID=... ADZUNA_APP_KEY=...
-    python pipeline/ingest.py
+    python pipeline/ingest.py               # local: data/raw/*.parquet (DuckDB)
+    python pipeline/ingest.py --bigquery    # BigQuery: needs BQ_PROJECT and
+                                            # GOOGLE_APPLICATION_CREDENTIALS
 
-Each run writes a new file, data/raw/adzuna_postings_<UTC timestamp>.parquet,
-and never overwrites old ones, so the raw layer keeps every snapshot. Cleaning
-and deduplication happen later, in dbt (job_market/).
+Each run appends a new snapshot (a new Parquet file, or new rows in the
+BigQuery raw table) and never overwrites old ones, so the raw layer keeps
+every snapshot. Cleaning and deduplication happen later, in dbt (job_market/).
 """
+import argparse
+import io
 import os
 import sys
 import time
@@ -25,6 +29,11 @@ CONFIG = ROOT / "pipeline" / "searches.yml"
 RAW_DIR = ROOT / "data" / "raw"
 API_URL = "https://api.adzuna.com/v1/api/jobs/{country}/search/{page}"
 PER_PAGE = 50
+
+# BigQuery destination for --bigquery runs. dbt reads this table as its source.
+BQ_RAW_DATASET = "job_market_raw"
+BQ_RAW_TABLE = "adzuna_postings"
+BQ_LOCATION = "US"
 
 # Fixed schema so every file is identical and dbt can read them all with one glob,
 # even on a day when e.g. no posting has a salary. Timestamps are UTC.
@@ -110,7 +119,7 @@ def flatten(job: dict, search: dict, ingested_at: datetime) -> dict:
     }
 
 
-def main() -> int:
+def main(bigquery_project: str | None = None) -> int:
     app_id, app_key = os.getenv("ADZUNA_APP_ID"), os.getenv("ADZUNA_APP_KEY")
     if not app_id or not app_key:
         print("Set ADZUNA_APP_ID and ADZUNA_APP_KEY first.", file=sys.stderr)
@@ -133,21 +142,70 @@ def main() -> int:
         rows.extend(flatten(j, search, ingested_at) for j in jobs)
         print(f"  {search['name']:<20} {len(jobs):>4} postings")
 
-    if rows:
-        RAW_DIR.mkdir(parents=True, exist_ok=True)
-        dest = RAW_DIR / f"adzuna_postings_{ingested_at:%Y-%m-%dT%H%M%S}.parquet"
-        tmp = dest.with_suffix(".tmp")  # write then rename, so dbt never sees a half-written file
-        pq.write_table(pa.Table.from_pylist(rows, schema=SCHEMA), tmp)
-        tmp.rename(dest)
-        print(f"Wrote {len(rows)} rows to {dest.relative_to(ROOT)}")
-    else:
-        # Fail so run.sh stops here instead of running dbt on no data.
+    if not rows:
+        # Fail so the caller stops here instead of running dbt on no data.
         print("No rows fetched; nothing written. Check location / keywords in "
               "pipeline/searches.yml.", file=sys.stderr)
         return 2
 
+    table = pa.Table.from_pylist(rows, schema=SCHEMA)
+    if bigquery_project:
+        dest = load_to_bigquery(table, bigquery_project)
+    else:
+        dest = write_parquet(table, ingested_at)
+    print(f"Wrote {len(rows)} rows to {dest}")
+
     return 1 if failed else 0
 
 
+def write_parquet(table: pa.Table, ingested_at: datetime) -> str:
+    RAW_DIR.mkdir(parents=True, exist_ok=True)
+    dest = RAW_DIR / f"adzuna_postings_{ingested_at:%Y-%m-%dT%H%M%S}.parquet"
+    tmp = dest.with_suffix(".tmp")  # write then rename, so dbt never sees a half-written file
+    pq.write_table(table, tmp)
+    tmp.rename(dest)
+    return str(dest.relative_to(ROOT))
+
+
+def load_to_bigquery(table: pa.Table, project: str) -> str:
+    """Append this run's rows to the raw table with a load job.
+
+    Load jobs are free and work in the BigQuery sandbox (streaming inserts don't).
+    Credentials come from GOOGLE_APPLICATION_CREDENTIALS (service account key file).
+    """
+    from google.cloud import bigquery  # only needed for BigQuery runs
+
+    client = bigquery.Client(project=project)
+    dataset = bigquery.Dataset(f"{project}.{BQ_RAW_DATASET}")
+    dataset.location = BQ_LOCATION
+    client.create_dataset(dataset, exists_ok=True)
+
+    buf = io.BytesIO()
+    pq.write_table(table, buf)
+    buf.seek(0)
+    dest = f"{project}.{BQ_RAW_DATASET}.{BQ_RAW_TABLE}"
+    job = client.load_table_from_file(
+        buf,
+        dest,
+        job_config=bigquery.LoadJobConfig(
+            source_format=bigquery.SourceFormat.PARQUET,
+            write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
+        ),
+    )
+    job.result()  # wait; raises if the load failed
+    return dest
+
+
 if __name__ == "__main__":
-    sys.exit(main())
+    parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    parser.add_argument(
+        "--bigquery", action="store_true",
+        help="Load into BigQuery (project from $BQ_PROJECT) instead of data/raw/*.parquet.",
+    )
+    args = parser.parse_args()
+    project = None
+    if args.bigquery:
+        project = os.getenv("BQ_PROJECT")
+        if not project:
+            sys.exit("--bigquery needs BQ_PROJECT set, e.g. export BQ_PROJECT=my-project-id")
+    sys.exit(main(project))

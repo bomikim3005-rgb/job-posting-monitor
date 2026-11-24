@@ -1,11 +1,6 @@
 seeds:
   - name: skills
     description: Skills to look for in postings. `pattern` is a regex matched against lower-cased title + description.
-    config:
-      column_types:
-        skill: varchar
-        skill_group: varchar
-        pattern: varchar
     columns:
       - name: skill
         data_tests:

@@ -5,7 +5,7 @@
 # returns nothing) and searches only 5 km around it unless distance_km is set.
 # 80 km from San Francisco reaches Oakland, the Peninsula and San Jose.
 country: us
-max_pages: 3          # 50 results per page -> up to 150 postings per search
+max_pages: 1          # 50 results per page; each page is one Adzuna API call per search
 location: San Francisco
 distance_km: 80
 searches:

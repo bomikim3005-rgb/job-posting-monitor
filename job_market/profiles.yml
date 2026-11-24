@@ -1,5 +1,7 @@
-# Run dbt from inside job_market/ so these relative paths resolve.
-# A BigQuery target gets added here when we move off DuckDB.
+# Run dbt from inside job_market/ so the relative DuckDB path resolves.
+#   dbt build                    -> local DuckDB (data/job_market.duckdb)
+#   dbt build --target bigquery  -> BigQuery; needs BQ_PROJECT and
+#                                   GOOGLE_APPLICATION_CREDENTIALS (key file path)
 job_market:
   target: dev
   outputs:
@@ -7,3 +9,11 @@ job_market:
       type: duckdb
       path: ../data/job_market.duckdb
       threads: 1
+    bigquery:
+      type: bigquery
+      method: service-account
+      project: "{{ env_var('BQ_PROJECT') }}"
+      dataset: job_market
+      keyfile: "{{ env_var('GOOGLE_APPLICATION_CREDENTIALS') }}"
+      location: US
+      threads: 4

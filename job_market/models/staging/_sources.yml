@@ -1,8 +1,14 @@
 sources:
   - name: adzuna
-    description: Raw Adzuna search results written by pipeline/ingest.py, one Parquet file per run.
+    description: >
+      Raw Adzuna search results written by pipeline/ingest.py. Locally that's one
+      Parquet file per run (read via external_location); on BigQuery it's the
+      append-only table job_market_raw.adzuna_postings.
+    database: "{{ target.project if target.type == 'bigquery' else target.database }}"
+    schema: "{{ 'job_market_raw' if target.type == 'bigquery' else 'main' }}"
     tables:
       - name: postings
+        identifier: "{{ 'adzuna_postings' if target.type == 'bigquery' else 'postings' }}"
         description: >
           One row per posting per search per ingest run. The same job shows up again
           on later runs (and under more than one search), so this is not unique on job_id.
