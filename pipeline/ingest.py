@@ -16,7 +16,7 @@ import io
 import os
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pyarrow as pa
@@ -34,6 +34,7 @@ PER_PAGE = 50
 BQ_RAW_DATASET = "job_market_raw"
 BQ_RAW_TABLE = "adzuna_postings"
 BQ_LOCATION = "US"
+RAW_RETENTION_DAYS = 60   # BigQuery sandbox maximum; each day's partition lives this long
 
 # Fixed schema so every file is identical and dbt can read them all with one glob,
 # even on a day when e.g. no posting has a salary. Timestamps are UTC.
@@ -172,6 +173,11 @@ def load_to_bigquery(table: pa.Table, project: str) -> str:
 
     Load jobs are free and work in the BigQuery sandbox (streaming inserts don't).
     Credentials come from GOOGLE_APPLICATION_CREDENTIALS (service account key file).
+
+    Sandbox projects (no billing) delete tables 60 days after creation. To keep a
+    rolling 60-day history instead of losing everything at once, the raw table is
+    partitioned by day (each day's partition expires on its own) and every run
+    pushes the table's own expiry forward.
     """
     from google.cloud import bigquery  # only needed for BigQuery runs
 
@@ -190,9 +196,24 @@ def load_to_bigquery(table: pa.Table, project: str) -> str:
         job_config=bigquery.LoadJobConfig(
             source_format=bigquery.SourceFormat.PARQUET,
             write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
+            # Used when the load creates the table; must match an existing table.
+            time_partitioning=bigquery.TimePartitioning(
+                type_=bigquery.TimePartitioningType.DAY,
+                field="ingested_at",
+                expiration_ms=RAW_RETENTION_DAYS * 24 * 3600 * 1000,
+            ),
         ),
     )
     job.result()  # wait; raises if the load failed
+
+    try:
+        raw = client.get_table(dest)
+        raw.expires = datetime.now(timezone.utc) + timedelta(days=RAW_RETENTION_DAYS - 1)
+        client.update_table(raw, ["expires"])
+    except Exception as e:  # the data is loaded; don't fail the run, but make it visible
+        # "::warning::" shows up as an annotation on the GitHub Actions run page.
+        print(f"::warning::Could not extend raw table expiry ({type(e).__name__}: {e}). "
+              "The raw table may be deleted when it reaches its expiration date.")
     return dest
 
 
