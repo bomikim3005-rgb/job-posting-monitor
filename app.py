@@ -156,15 +156,20 @@ def render_trends():
     left, right = st.columns(2)
     with left:
         st.subheader("New postings per day")
-        d = daily[daily["role"].isin(picked) & (daily["posted_date"] >= started.normalize())]
+        d = daily[daily["role"].isin(picked)]
         wide = (d.pivot_table(index="posted_date", columns="role", values="postings",
                               aggfunc="sum", fill_value=0)
                  .rename(columns=role_label))
         if wide.empty:
             st.caption("Not enough data yet.")
+        elif len(wide) == 1:
+            # A line chart can't draw a single date, so it would look empty.
+            st.bar_chart(wide, stack=False)
         else:
             st.line_chart(wide)
-        st.caption("By the date each posting was created, from the pipeline's first run on.")
+        st.caption("By the date each posting was created, for every posting the pipeline "
+                   "has collected. Days before the first run only include postings "
+                   "still listed then.")
     with right:
         st.subheader("Top hiring companies")
         top = (p["company"].dropna().value_counts().head(10)
