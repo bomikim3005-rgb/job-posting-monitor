@@ -277,9 +277,13 @@ def render_live():
                "from the same monthly quota as the pipeline.")
     # A form, so Adzuna is only called on "Search", not on every page load.
     with st.form("live_search"):
-        c1, c2 = st.columns(2)
+        c1, c2, c0 = st.columns(3)
         what = c1.text_input("Keywords", "people analytics")
         where = c2.text_input("Location", "California")
+        company = c0.text_input("Company (contains)", "", placeholder="e.g. LinkedIn",
+                                help="Keeps postings whose company name contains this text, "
+                                     "ignoring case. It filters the results Adzuna returns, "
+                                     "so pair it with keywords, or raise Pages to see more.")
         match = st.radio("Match", list(MATCH_MODES), horizontal=True)
         title_only = st.checkbox("Keywords must appear in job title", value=False)
         c3, c4, c5 = st.columns(3)
@@ -312,7 +316,7 @@ def render_live():
             return
         st.session_state["live"] = {"raw": raw, "what": what, "match": match,
                                     "title_only": title_only, "must_have": must_have,
-                                    "min_salary": min_salary}
+                                    "min_salary": min_salary, "company": company}
 
     state = st.session_state.get("live")
     if not state:
@@ -327,6 +331,11 @@ def render_live():
         before = len(df)
         df = df[df["title"].apply(lambda t: title_matches(t, state["what"], state["match"]))]
         st.caption(f"Title filter kept {len(df)} of {before} postings.")
+    company = state.get("company", "").strip()
+    if company:
+        before = len(df)
+        df = df[df["company"].str.contains(company, case=False, na=False, regex=False)]
+        st.caption(f"Company filter kept {len(df)} of {before} postings.")
     for term in [t.strip().lower() for t in state["must_have"].split(",") if t.strip()]:
         df = df[df["description"].str.lower().str.contains(term, na=False, regex=False)]
     if state["min_salary"]:
