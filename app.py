@@ -160,6 +160,9 @@ def render_trends():
         wide = (d.pivot_table(index="posted_date", columns="role", values="postings",
                               aggfunc="sum", fill_value=0)
                  .rename(columns=role_label))
+        # Blank out each role's days before its oldest collected posting: no postings
+        # were collected for those days, which isn't the same as none being posted.
+        wide = wide.where(wide.gt(0).cummax())
         if wide.empty:
             st.caption("Not enough data yet.")
         elif len(wide) == 1:
@@ -169,7 +172,8 @@ def render_trends():
             st.line_chart(wide)
         st.caption("By the date each posting was created, for every posting the pipeline "
                    "has collected. Days before the first run only include postings "
-                   "still listed then.")
+                   "still listed then, so each line starts at the oldest posting "
+                   "collected for that role.")
     with right:
         st.subheader("Top hiring companies")
         top = (p["company"].dropna().value_counts().head(10)
